@@ -2,13 +2,20 @@
 session_start();
 require_once(__DIR__ . "/../classe/utilisateurs.php");
 require_once(__DIR__ . "/../classe/maison.php");
+require_once(__DIR__ . "/../classe/demande_location.php");
+
 $us = new Utilisateur();
 $maison = new Maison();
+$location = new DemandeLocation();
 $id_utilisateur = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $demandes = [];
 if ($id_utilisateur) {
     $demandes = $maison->getMaisonsByUtilisateur($id_utilisateur);
 }
+$maisons = $maison->getMaisonsApprouvees();
+// Compteur pour badge notification
+$nbDemandes = is_array($demandes) ? count($demandes) : 0;
+$accept=$location-> getDemandesApprouveesPourLocataire($_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -16,6 +23,7 @@ if ($id_utilisateur) {
     <meta charset="UTF-8">
     <title>Tableau de bord Locataire</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="../images/logo/logos.avif">
     <link rel="stylesheet" href="../asset/css/adm_index.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -24,6 +32,7 @@ if ($id_utilisateur) {
         .notif-badge { position: absolute; top: 8px; right: 16px; background: red; color: #fff; border-radius: 50%; padding: 2px 7px; font-size: 12px; }
         .main-section { display: none; }
         .main-section.active { display: block; }
+        #search-loader { display: none; }
     </style>
 </head>
 <body>
@@ -47,7 +56,7 @@ if ($id_utilisateur) {
                     <li class="nav-item mb-2 position-relative">
                         <a class="nav-link d-flex align-items-center text-white" href="#" data-section="demandes">
                             <i class="fas fa-list-ol me-2"></i> Mes demandes
-                            <span class="notif-badge">2</span>
+                            <span class="notif-badge" id="notifDemandes"><?php echo $nbDemandes; ?></span>
                         </a>
                     </li>
                     <li class="nav-item mb-2">
@@ -56,7 +65,7 @@ if ($id_utilisateur) {
                         </a>
                     </li>
                     <li class="nav-item mt-4">
-                        <a class="nav-link text-danger d-flex align-items-center bg-white" href="#">
+                        <a class="nav-link text-danger d-flex align-items-center bg-white" href="../logout.php">
                             <i class="fas fa-sign-out-alt me-2"></i> Déconnexion
                         </a>
                     </li>
@@ -128,131 +137,150 @@ if ($id_utilisateur) {
                     <h2 class="h4"><i class="fas fa-search me-2 text-primary"></i>Recherche de maison</h2>
                     <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">Retour</button>
                 </div>
-                <form method="get" action="#maisonsResults" class="mb-4">
-                    <div class="row g-2">
-                        <div class="col-md-4">
-                            <input type="text" class="form-control" name="motcle" placeholder="Ville, quartier, ..." />
-                        </div>
-                        <div class="col-md-3">
-                            <input type="number" class="form-control" name="min_prix" placeholder="Prix min" />
-                        </div>
-                        <div class="col-md-3">
-                            <input type="number" class="form-control" name="max_prix" placeholder="Prix max" />
-                        </div>
-                        <div class="col-md-2">
-                            <button class="btn btn-primary w-100">Rechercher</button>
-                        </div>
-                    </div>
-                </form>
-                <!-- Résultats (exemple statique pour la démo) -->
-                <div class="row" id="maisonsResults">
-                    <!-- Cards maisons test -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card shadow">
-                            <img src="maison1.jpg" class="card-img-top" alt="Maison 1">
-                            <div class="card-body">
-                                <h5 class="card-title">Appartement spacieux à Lyon</h5>
-                                <p>550 € / mois <br>2 chambres, quartier Part-Dieu</p>
-                                <div class="d-flex gap-2">
-                                    <form method="post" action="#" onsubmit="alert('Notification envoyée !'); return false;">
-                                        <input type="hidden" name="maison_id" value="101">
-                                        <button type="submit" class="btn btn-success">Demander à louer</button>
-                                    </form>
-                                    <button type="button" class="btn btn-outline-primary" onclick="showMaisonDetail('maison1')">Voir le détail</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Autres maisons en démo/simple -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card shadow">
-                            <img src="maison2.jpg" class="card-img-top" alt="Maison 2">
-                            <div class="card-body">
-                                <h5 class="card-title">Studio moderne à Bordeaux</h5>
-                                <p>420 € / mois <br> Bonne proximité transports.</p>
-                                <div class="d-flex gap-2">
-                                    <form method="post" action="#" onsubmit="alert('Notification envoyée !'); return false;">
-                                        <input type="hidden" name="maison_id" value="102">
-                                        <button type="submit" class="btn btn-success">Demander à louer</button>
-                                    </form>
-                                    <button type="button" class="btn btn-outline-primary" onclick="showMaisonDetail('maison2')">Voir le détail</button>
-                                </div>
-                            </div>
-                        </div>
+                <div class="mb-4">
+                    <input type="text" class="form-control" id="searchMaisonInput" placeholder="Rechercher par ville, quartier, prix, etc..." onkeyup="showResult(this.value)">
+                </div>
+                <div id="search-loader" class="text-center mb-2">
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div>
+                </div>
+                <!-- Résultats AJAX -->
+                <div class="col-md-12">
+                    <div id="livesearch">
                     </div>
                 </div>
-                <!-- Fin Résultats -->
-            </div>
-
-            <!-- Modal Détail Maison -->
-            <div class="modal fade" id="modalMaisonDetail" tabindex="-1" aria-labelledby="modalMaisonDetailLabel" aria-hidden="true">
-              <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                  <div class="modal-header">
-                    <h5 class="modal-title" id="modalMaisonDetailLabel">Détail de la maison</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <div class="modal-body">
-                    <div class="row">
-                      <div class="col-md-5" id="detailMaisonImg">
-                        <!-- Image maison -->
-                      </div>
-                      <div class="col-md-7" id="detailMaisonInfos">
-                        <!-- Infos maison -->
-                      </div>
-                    </div>
-                  </div>
-                  <div class="modal-footer">
-                    <form method="post" action="#" id="formDemandeLocation" onsubmit="alert('Notification envoyée !');$('#modalMaisonDetail').modal('hide');return false;">
-                      <input type="hidden" name="maison_id" id="modalMaisonId" value="">
-                      <button type="submit" class="btn btn-success">Demander la location maintenant</button>
-                    </form>
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <script>
-            // Données de démo pour les maisons
-            const maisonsDemo = {
-                maison1: {
-                    id: 101,
-                    titre: "Appartement spacieux à Lyon",
-                    prix: "550 € / mois",
-                    chambres: "2 chambres",
-                    quartier: "Part-Dieu",
-                    description: "Bel appartement lumineux, proche de toutes commodités, cuisine équipée, balcon.",
-                    image: "maison1.jpg"
-                },
-                maison2: {
-                    id: 102,
-                    titre: "Studio moderne à Bordeaux",
-                    prix: "420 € / mois",
-                    chambres: "1 pièce",
-                    quartier: "Proximité transports",
-                    description: "Studio rénové, idéal étudiant ou jeune actif, accès tramway, commerces à pied.",
-                    image: "maison2.jpg"
+                <!-- Les résultats s'affichent ici -->
+                <!-- Modal Détails Maison -->
+                <script>
+                function showResult(str) {
+                    var loader = document.getElementById("search-loader");
+                    if (loader) loader.style.display = "block";
+                    if (str.length==0) {
+                        document.getElementById("livesearch").innerHTML="";
+                        document.getElementById("livesearch").style.border="0px";
+                        if (loader) loader.style.display = "none";
+                        return;
+                    }
+                    var xmlhttp=new XMLHttpRequest();
+                    xmlhttp.onreadystatechange=function() {
+                        if (this.readyState==4 && this.status==200) {
+                            document.getElementById("livesearch").innerHTML=this.responseText;
+                            document.getElementById("livesearch").style.border="1px solid #A5ACB2";
+                            if (loader) loader.style.display = "none";
+                        }
+                    }
+                    xmlhttp.open("GET","../ajax/recherche_maison.php?q="+encodeURIComponent(str),true);
+                    xmlhttp.send();
                 }
-            };
-
-            function showMaisonDetail(maisonKey) {
-                const maison = maisonsDemo[maisonKey];
-                if (!maison) return;
-                document.getElementById('modalMaisonDetailLabel').textContent = maison.titre;
-                document.getElementById('detailMaisonImg').innerHTML = `<img src="${maison.image}" alt="${maison.titre}" class="img-fluid rounded shadow">`;
-                document.getElementById('detailMaisonInfos').innerHTML = `
-                    <h4>${maison.titre}</h4>
-                    <p><strong>Prix :</strong> ${maison.prix}</p>
-                    <p><strong>Chambres :</strong> ${maison.chambres}</p>
-                    <p><strong>Quartier :</strong> ${maison.quartier}</p>
-                    <p>${maison.description}</p>
-                `;
-                document.getElementById('modalMaisonId').value = maison.id;
-                var modal = new bootstrap.Modal(document.getElementById('modalMaisonDetail'));
-                modal.show();
-            }
-            </script>
+                </script>
+                <div class="modal fade" id="maisonDetailsModal" tabindex="-1" aria-labelledby="maisonDetailsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="maisonDetailsModalLabel">Détails de la maison</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row g-3 align-items-center">
+                                    <div class="col-12 col-md-5 mb-3 mb-md-0">
+                                        <img id="maisonDetailsPhoto" src="" alt="Maison" class="img-fluid rounded w-100" style="object-fit:cover;max-height:300px;">
+                                    </div>
+                                    <div class="col-12 col-md-7">
+                                        <h4 id="maisonDetailsAdresse"></h4>
+                                        <p class="mb-1"><i class="fas fa-bed"></i> <span id="maisonDetailsChambres"></span> chambres</p>
+                                        <p class="mb-1"><i class="fas fa-info-circle"></i> Statut : <span id="maisonDetailsStatut"></span></p>
+                                        <p class="fw-bold text-primary fs-5 mb-2" id="maisonDetailsPrix"></p>
+                                        <hr>
+                                        <p id="maisonDetailsDescription"></p>
+                                        <p class="mb-1 text-muted">ID utilisateur : <span id="maisonDetailsIdUtilisateur"></span></p>
+                                        <p class="mb-1 text-muted">ID maison : <span id="maisonDetailsIdMaison"></span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <form class="d-flex gap-2" method="post" action="../demande/demande_location.php" id="demandeForm">
+                                    <input type="hidden" name="maison_id" id="maisonDetailsHiddenId">
+                                    <input type="hidden" name="id_utilisateur" id="maisonDetailsHiddenIdUtilisateur" value="<?php echo isset($_SESSION['user_id']) ? htmlspecialchars($_SESSION['user_id']) : ''; ?>">
+                                    <button type="submit" class="btn btn-primary" id="commanderBtn">Commander</button>
+                                    <button type="button" class="btn btn-warning" id="avisBtn">Envoyer avis</button>
+                                </form>
+                                <!-- Modal Avis -->
+                                <div class="modal fade" id="avisModal" tabindex="-1" aria-labelledby="avisModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="post" action="../avis/avis.php">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="avisModalLabel">Envoyer un avis</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <input type="text" name="maison_id" id="avisMaisonId" readonly class="form-control mb-3" style="pointer-events:none;background:#f8f9fa;">
+                                                    <input type="text" name="id_utilisateur" id="avisIdUtilisateur" readonly class="form-control mb-3" style="pointer-events:none;background:#f8f9fa;" value="<?php echo isset($_SESSION['user_id']) ? htmlspecialchars($_SESSION['user_id']) : ''; ?>">
+                                                    <div class="mb-3">
+                                                        <label for="avisNote" class="form-label">Note</label>
+                                                        <select class="form-select" id="avisNote" name="note" required>
+                                                            <option value="">Choisir une note...</option>
+                                                            <option value="1">&#9733; 1/5</option>
+                                                            <option value="2">&#9733;&#9733; 2/5</option>
+                                                            <option value="3">&#9733;&#9733;&#9733; 3/5</option>
+                                                            <option value="4">&#9733;&#9733;&#9733;&#9733; 4/5</option>
+                                                            <option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; 5/5</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label for="avisMessage" class="form-label">Votre message</label>
+                                                        <textarea class="form-control" id="avisMessage" name="message" rows="4" required></textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                    <button type="submit" class="btn btn-warning">Envoyer</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                <script>
+                                // Séparation du submit et du bouton commander
+                                document.getElementById('commanderBtn').onclick = function(e) {
+                                    // Laisser le submit du formulaire faire son travail
+                                };
+                                document.getElementById('avisBtn').onclick = function() {
+                                    var maisonId = document.getElementById('maisonDetailsHiddenId').value;
+                                    document.getElementById('avisMaisonId').value = maisonId;
+                                    var avisModal = new bootstrap.Modal(document.getElementById('avisModal'));
+                                    avisModal.show();
+                                };
+                                </script>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                function showMaisonDetails(data) {
+                    var img = document.getElementById('maisonDetailsPhoto');
+                    img.src = data.photo && data.photo.trim() !== "" ? data.photo : '../images/maison/default.jpg';
+                    img.onerror = function() { this.src = '../images/maison/default.jpg'; };
+                    document.getElementById('maisonDetailsAdresse').textContent = data.adresse;
+                    document.getElementById('maisonDetailsChambres').textContent = data.nombre_de_chambre;
+                    document.getElementById('maisonDetailsStatut').textContent = data.statut;
+                    document.getElementById('maisonDetailsPrix').textContent = data.prix + " $";
+                    document.getElementById('maisonDetailsDescription').textContent = data.description;
+                    document.getElementById('maisonDetailsIdUtilisateur').textContent = data.id_utilisateur;
+                    document.getElementById('maisonDetailsIdMaison').textContent = data.id || '';
+                    document.getElementById('maisonDetailsHiddenId').value = data.id || '';
+                    var modal = new bootstrap.Modal(document.getElementById('maisonDetailsModal'));
+                    modal.show();
+                }
+                // Ajout de la fonction toggleAnnoncesSection si absente
+                function toggleAnnoncesSection() {
+                    var section = document.getElementById('section-annonces');
+                    if (section) {
+                        section.style.display = (section.style.display === 'none' || section.style.display === '') ? 'block' : 'none';
+                    }
+                }
+                </script>
+            </div>
             <!-- SECTION DEMANDES -->
             <div class="main-section" id="demandes">
                 <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -267,13 +295,19 @@ if ($id_utilisateur) {
                                 <div>
                                     <strong>
                                         <?php echo htmlspecialchars($demande['adresse'] ?? 'Maison'); ?> – 
-                                        <?php echo htmlspecialchars($demande['prix'] ?? ''); ?> €
+                                        <?php echo htmlspecialchars($demande['prix'] ?? ''); ?> $
                                         <?php echo isset($demande['nombre_de_chambre']) ? htmlspecialchars($demande['nombre_de_chambre']) . ' chambre(s)' : ''; ?>
                                     </strong>
                                     <br>
                                     <span class="small">
                                         Demande envoyée le 
-                                        <?php echo isset($demande['date_demande']) ? date('d/m/Y', strtotime($demande['date_demande'])) : ''; ?>
+                                        <?php
+                                        if (!empty($demande['date']) && strtotime($demande['date']) !== false) {
+                                            echo date('d/m/Y', strtotime($demande['date']));
+                                        } else {
+                                            echo '';
+                                        }
+                                        ?>
                                     </span>
                                 </div>
                                 <div>
@@ -316,11 +350,19 @@ if ($id_utilisateur) {
                         </tr>
                     </thead>
                     <tbody>
+                        <?php if (!empty($accept)) : ?>
+                                <?php foreach ($accept as $accep) :    ?>
                         <tr>
-                            <td><strong>Studio ludique, Bordeaux</strong><br>(Montant : 420 €)</td>
+                            <td><strong><?php echo htmlspecialchars($accep['adresse']).', '. htmlspecialchars($accep['date_demande']); ?>
+                            </strong><br><?php echo htmlspecialchars($accep['prix']); ?></td>
+                              
                             <td><span class="badge bg-success">En cours</span></td>
                             <td>
-                                <button class="btn btn-outline-secondary btn-sm me-2">Voir signer <i class="fas fa-pen"></i></button>
+                                <form action="../contrat/contrat.php" method="post">
+                                    <input type="hidden" name="id_maison" value="<?php echo htmlspecialchars($accep['id_maison']); ?>">
+                                    <input type="hidden" name="id_utilisateur" value="<?php echo htmlspecialchars($_SESSION['user_id']); ?>">
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm me-2">Voir signer <i class="fas fa-pen"></i></button>
+                                </form>
                             </td>
                             <td>
                                 <form method="post" onsubmit="alert('Paiement effectué !'); return false;">
@@ -330,6 +372,12 @@ if ($id_utilisateur) {
                             <td>
                                 <button class="btn btn-outline-primary btn-sm" onclick="showModal('modAvisMaison')">Laisser un avis</button>
                             </td>
+                               <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="col-12">
+                                    <div class="alert alert-info text-center">Aucune annonce trouvée.</div>
+                                </div>
+                            <?php endif; ?>
                         </tr>
                         <tr>
                             <td><strong>Appart cosy, Lyon</strong><br>(Montant : 550 €)</td>
@@ -354,7 +402,7 @@ if ($id_utilisateur) {
                     <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">Retour</button>
                 </div>
                 <div>
-                    <!-- multiple avis, recommandations à la flexibilité -->
+                    <!-- Plusieurs avis, recommandations à la flexibilité -->
                     <button class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#modAvisMaison">Donner un avis sur une location</button>
                     <div><!-- Afficher les avis déjà laissés ici (dummy/demo) --></div>
                 </div>

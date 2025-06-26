@@ -1,5 +1,9 @@
 {
     "require": {
-        "phpmailer/phpmailer": "^6.10"
+        "phpmailer/phpmailer": "*",
+        "tecnickcom/tcpdf": "^6.10",
+        "symfony/var-dumper": "*",
+        "symfony/console": "*",
+        "decomplexity/sendoauth2": "^4.1"
     }
 }

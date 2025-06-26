@@ -11,7 +11,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accueil - Location Maisons</title>
-    <link rel="icon" type="image/png" href="https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=60&q=80">
+    <link rel="icon" type="image/png" href="../images/logo/logos.avif">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -231,39 +231,53 @@
 
     <!-- Modal de recherche -->
     <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
           <form onsubmit="event.preventDefault(); /* Ajoutez ici votre logique de recherche */">
             <div class="modal-header">
-              <h5 class="modal-title" id="searchModalLabel">Recherche de maison</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
             </div>
-            <div class="modal-body">
-              <div class="mb-3">
-                <label for="nbChambres" class="form-label">Nombre de chambres</label>
-                <input type="number" class="form-control" id="nbChambres" name="nbChambres" min="1" max="10" placeholder="Ex: 3">
-              </div>
-              <div class="mb-3">
-                <label for="qualite" class="form-label">Qualité de la maison</label>
-                <select class="form-select" id="qualite" name="qualite">
-                  <option value="">Choisir...</option>
-                  <option value="standard">Standard</option>
-                  <option value="moderne">Moderne</option>
-                  <option value="luxe">Luxe</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="ville" class="form-label">Ville</label>
-                <input type="text" class="form-control" id="ville" name="ville" placeholder="Ex: Paris">
-              </div>
-              <div class="mb-3">
-                <label for="prixMax" class="form-label">Prix maximum ($)</label>
-                <input type="number" class="form-control" id="prixMax" name="prixMax" min="0" step="100" placeholder="Ex: 1500">
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-              <button type="submit" class="btn btn-primary">Rechercher</button>
+            <div class="main-section" id="recherche">
+                <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-4 border-bottom">
+                    <h2 class="h4"><i class="fas fa-search me-2 text-primary"></i>Recherche de maison</h2>
+                    <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">Retour</button>
+                </div>
+                <div class="mb-4">
+                    <input type="text" class="form-control" id="searchMaisonInput" placeholder="Rechercher par ville, quartier, prix, etc..." onkeyup="showResult(this.value)">
+                </div>
+                <div id="search-loader" class="text-center mb-2">
+                    <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement...</span></div>
+                </div>
+                <!-- Résultats AJAX -->
+                <div class="col-md-12">
+                    <div id="livesearch">
+                    </div>
+                </div>
+                <!-- Les résultats s'affichent ici -->
+                <!-- Modal Détails Maison -->
+                <script>
+                function showResult(str) {
+                    var loader = document.getElementById("search-loader");
+                    if (loader) loader.style.display = "block";
+                    if (str.length==0) {
+                        document.getElementById("livesearch").innerHTML="";
+                        document.getElementById("livesearch").style.border="0px";
+                        if (loader) loader.style.display = "none";
+                        return;
+                    }
+                    var xmlhttp=new XMLHttpRequest();
+                    xmlhttp.onreadystatechange=function() {
+                        if (this.readyState==4 && this.status==200) {
+                            document.getElementById("livesearch").innerHTML=this.responseText;
+                            document.getElementById("livesearch").style.border="1px solid #A5ACB2";
+                            if (loader) loader.style.display = "none";
+                        }
+                    }
+                    xmlhttp.open("GET","../ajax/recherche_maison.php?q="+encodeURIComponent(str),true);
+                    xmlhttp.send();
+                }
+                </script>
+                
             </div>
           </form>
         </div>

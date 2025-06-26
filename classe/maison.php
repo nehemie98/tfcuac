@@ -77,9 +77,17 @@ class Maison
 
     public function getMaisonsApprouvees()
     {
-        $query = "SELECT * FROM " . $this->table . " WHERE validite = 'approuver' ORDER BY id_maison DESC";
+        $query = "SELECT * FROM " . $this->table . " WHERE validite = 'approuver' AND statut='Disponible' ORDER BY id_maison DESC";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    public function changerStatut($id_maison, $statut)
+    {
+        $query = "UPDATE " . $this->table . " SET statut = :statut WHERE id_maison = :id_maison";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(":statut", $statut);
+        $stmt->bindParam(":id_maison", $id_maison);
+        return $stmt->execute();
     }
 }

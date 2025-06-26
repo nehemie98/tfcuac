@@ -1,6 +1,9 @@
 <?php
 session_start();
+require_once(__DIR__."/../classe/utilisateurs.php");
 require_once(__DIR__ . "/../classe/maison.php");
+require_once(__DIR__ . '/../classe/demande_location.php');
+
 
 // Vérifier si l'utilisateur est connecté
 if (!isset($_SESSION['user_id'])) {
@@ -10,6 +13,9 @@ if (!isset($_SESSION['user_id'])) {
 
 // Instancier la classe Maison
 $maison = new Maison();
+$demande = new DemandeLocation();
+// Récupérer les demandes envoyées aux maisons du propriétaire
+$demandesEnvoyees = $demande->getDemandesEnvoyeesAMaMaison($_SESSION['user_id']);
 
 $user_id = intval($_SESSION['user_id']);
 
@@ -84,6 +90,11 @@ if (isset($_POST['publier'])) {
         // Vous pouvez afficher $message dans la page pour informer l'utilisateur
         // Exemple : echo '<div class="alert alert-danger">'.$message.'</div>';
     }
+    // Fonction pour obtenir le nombre total de demandes pour les maisons du propriétaire
+  
+
+    // Exemple d'utilisation pour afficher le nombre total de demandes dans une variable
+   
 }
 ?>
 <!DOCTYPE html>
@@ -92,6 +103,7 @@ if (isset($_POST['publier'])) {
     <meta charset="UTF-8">
     <title>Tableau de bord Propriétaire</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="../images/logo/logos.avif">
     <link rel="stylesheet" href="../asset/css/adm_index.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -123,7 +135,7 @@ if (isset($_POST['publier'])) {
                     <li class="nav-item mb-2 position-relative">
                         <a class="nav-link d-flex align-items-center text-white" href="#" data-section="demandes">
                             <i class="fas fa-bell me-2"></i> Demandes
-                            <span class="notif-badge">3</span>
+                            <span class="notif-badge"><?php echo  $nombreDemandes =$demande->getNombreDemandesPourMesMaisons($user_id);?></span>
                         </a>
                     </li>
                     <li class="nav-item mb-2">
@@ -202,14 +214,61 @@ if (isset($_POST['publier'])) {
                     <h2><i class="fas fa-bell me-2 text-primary"></i>Demandes reçues</h2>
                     <button class="btn btn-outline-secondary" onclick="showSection('dashboard')">Retour</button>
                 </div>
-                <!-- Liste des demandes (exemple statique) -->
+                <!-- Liste des demandes dynamiques -->
                 <div class="list-group">
-                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#modalDemande1">
-                        <strong>Demande de location</strong> - Jean Dupont <span class="badge bg-info ms-2">Nouveau</span>
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#modalDemande2">
-                        <strong>Demande de visite</strong> - Marie Martin
-                    </a>
+                    <?php if (!empty($demandesEnvoyees)) : ?>
+                        <?php foreach ($demandesEnvoyees as $demande) : ?>
+                            <a href="#"
+                               class="list-group-item list-group-item-action"
+                               data-bs-toggle="modal"
+                               data-bs-target="#modalDemande<?php echo intval($demande['id_demande']); ?>">
+                                <strong>
+                                    <?php echo htmlspecialchars($demande["nom_locataire"] ?? 'Locataire inconnu'); ?>
+                                </strong>
+                                - <?php echo htmlspecialchars($demande["email_locataire"] ?? 'Demande de location'); ?>
+                                <span class="badge bg-<?php echo ($demande["statut"] === 'Nouveau') ? 'info' : 'secondary'; ?> ms-2">
+                                    <?php echo htmlspecialchars($demande["statut"]); ?>
+                                </span>
+                            </a>
+                            <!-- Modale dynamique pour chaque demande -->
+                            <div class="modal fade" id="modalDemande<?php echo intval($demande['id_demande']); ?>" tabindex="-1" aria-labelledby="modalDemandeLabel<?php echo intval($demande['id_demande']); ?>" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="modalDemandeLabel<?php echo intval($demande['id_demande']); ?>">
+                                                <?php echo htmlspecialchars($demande["statut"] ?? 'Demande'); ?> - <?php echo htmlspecialchars($demande["nom_locataire"] ?? 'Locataire'); ?>
+                                            </h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p><strong>Email :</strong> <?php echo htmlspecialchars($demande["email_locataire"] ?? ''); ?></p>
+                
+                                            <p><strong>nom :</strong> <?php echo nl2br(htmlspecialchars($demande["nom_locataire"] ?? '')); ?></p>
+                                            <p><strong>Adresse du bien :</strong> <?php echo htmlspecialchars($demande["adresse"] ?? ''); ?></p>
+                                            <p><strong>Statut :</strong>
+                                                <span class="badge bg-<?php echo ($demande["statut"] === 'Nouveau') ? 'info' : 'secondary'; ?>">
+                                                    <?php echo htmlspecialchars($demande["statut"]); ?>
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <form method="post" action="action.php" class="d-inline">
+                                                <input type="hidden" name="id_demande" value="<?php echo intval($demande['id_demande']); ?>">
+                                                <button type="submit" name="accepter" class="btn btn-success">Accepter</button>
+                                            </form>
+                                            <form method="post" action="action.php" class="d-inline ms-2">
+                                                <input type="hidden" name="id_demande" value="<?php echo intval($demande['id_demande']); ?>">
+                                                <button type="submit" name="refuser" class="btn btn-danger">Refuser</button>
+                                            </form>
+                                            <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else : ?>
+                        <div class="alert alert-info">Aucune demande reçue pour le moment.</div>
+                    <?php endif; ?>
                 </div>
             </div>
             <!-- Section Paiements -->
