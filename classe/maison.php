@@ -90,4 +90,13 @@ class Maison
         $stmt->bindParam(":id_maison", $id_maison);
         return $stmt->execute();
     }
+    public function getPrixMaison($id_maison)
+    {
+        $query = "SELECT prix FROM " . $this->table . " WHERE id_maison = :id_maison";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(":id_maison", $id_maison);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['prix'] : null;
+    }
 }

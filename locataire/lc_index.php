@@ -3,10 +3,12 @@ session_start();
 require_once(__DIR__ . "/../classe/utilisateurs.php");
 require_once(__DIR__ . "/../classe/maison.php");
 require_once(__DIR__ . "/../classe/demande_location.php");
+require_once(__DIR__ . "/../classe/contrat.php");
 
 $us = new Utilisateur();
 $maison = new Maison();
 $location = new DemandeLocation();
+$contrat = new Contrat();
 $id_utilisateur = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : null;
 $demandes = [];
 if ($id_utilisateur) {
@@ -16,6 +18,7 @@ $maisons = $maison->getMaisonsApprouvees();
 // Compteur pour badge notification
 $nbDemandes = is_array($demandes) ? count($demandes) : 0;
 $accept=$location-> getDemandesApprouveesPourLocataire($_SESSION['user_id']);
+
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -349,49 +352,85 @@ $accept=$location-> getDemandesApprouveesPourLocataire($_SESSION['user_id']);
                             <th>Avis</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <?php if (!empty($accept)) : ?>
-                                <?php foreach ($accept as $accep) :    ?>
-                        <tr>
-                            <td><strong><?php echo htmlspecialchars($accep['adresse']).', '. htmlspecialchars($accep['date_demande']); ?>
-                            </strong><br><?php echo htmlspecialchars($accep['prix']); ?></td>
-                              
-                            <td><span class="badge bg-success">En cours</span></td>
-                            <td>
-                                <form action="../contrat/contrat.php" method="post">
-                                    <input type="hidden" name="id_maison" value="<?php echo htmlspecialchars($accep['id_maison']); ?>">
-                                    <input type="hidden" name="id_utilisateur" value="<?php echo htmlspecialchars($_SESSION['user_id']); ?>">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm me-2">Voir signer <i class="fas fa-pen"></i></button>
-                                </form>
-                            </td>
-                            <td>
-                                <form method="post" onsubmit="alert('Paiement effectué !'); return false;">
-                                    <button class="btn btn-warning btn-sm">Payer</button>
-                                </form>
-                            </td>
-                            <td>
-                                <button class="btn btn-outline-primary btn-sm" onclick="showModal('modAvisMaison')">Laisser un avis</button>
-                            </td>
-                               <?php endforeach; ?>
-                            <?php else: ?>
-                                <div class="col-12">
-                                    <div class="alert alert-info text-center">Aucune annonce trouvée.</div>
-                                </div>
-                            <?php endif; ?>
-                        </tr>
-                        <tr>
-                            <td><strong>Appart cosy, Lyon</strong><br>(Montant : 550 €)</td>
-                            <td><span class="badge bg-secondary">Clôturé</span></td>
-                            <td>
-                                <span>Signé</span>
-                            </td>
-                            <td>
-                                <span>Effectué</span>
-                            </td>
-                            <td>
-                                <button class="btn btn-outline-primary btn-sm" onclick="showModal('modAvisMaison')">Laisser un avis</button>
-                            </td>
-                        </tr>
+                    <?php
+$contrat = new Contrat();
+?>
+
+<tbody>
+    <?php if (!empty($accept)) : ?>
+        <?php foreach ($accept as $accep) : ?>
+            <tr>
+                <td>
+                    <strong><?= htmlspecialchars($accep['adresse']) . ', ' . htmlspecialchars($accep['date_demande']); ?></strong><br>
+                    <?= htmlspecialchars($accep['prix']); ?> CDF
+                </td>
+
+                <td>
+                    <?php
+                    $id_maison = $accep['id_maison'];
+                    $id_utilisateur = $_SESSION['user_id'];
+
+                    // Récupérer le dernier contrat pour cette maison et cet utilisateur
+                    $dernier_contrat = $contrat->getcontratByMaisonAndUser($id_maison, $id_utilisateur);
+                    if (!empty($dernier_contrat)) {
+                        $id_contrat = $dernier_contrat[0]['id_contrat']; // Le plus récent est au début
+                        $statut = $contrat->verifierStatutContrat($id_contrat);
+                        echo "<span class='badge bg-success'>$statut</span>";
+                    } else {
+                        echo "<span class='badge bg-secondary'>Aucun contrat</span>";
+                    }
+                    ?>
+                </td>
+
+               <td>
+    <?php
+    // Vérifier si un contrat existe pour cette maison et cet utilisateur
+    $contrats_existants = $contrat->getcontratByMaisonAndUser($accep['id_maison'], $_SESSION['user_id']);
+
+    if (empty($contrats_existants)) :
+    ?>
+        <form action="../contrat/contrat.php" method="post">
+            <input type="hidden" name="id_maison" value="<?= htmlspecialchars($accep['id_maison']); ?>">
+            <input type="hidden" name="id_utilisateur" value="<?= htmlspecialchars($_SESSION['user_id']); ?>">
+            <button type="submit" class="btn btn-outline-secondary btn-sm me-2">
+                Voir / Signer <i class="fas fa-pen"></i>
+            </button>
+        </form>
+    <?php else : ?>
+        <span class="text-muted small">Contrat déjà signé</span>
+    <?php endif; ?>
+</td>
+
+
+                <td>
+                    <form action="../contrat/contrat.php" method="post">
+                         <input type="hidden" name="montant" value="<?= htmlspecialchars($accep['prix']); ?>">
+                        <input type="hidden" name="id_maison" value="<?= htmlspecialchars($accep['id_maison']); ?>">
+                         <input type="hidden" name="id_utilisateur" value="<?= htmlspecialchars($_SESSION['user_id']); ?>">
+                        
+                    <button type="submit" class="btn btn-warning btn-sm">Payer</button>
+                    </form>
+                </td>
+
+                <td>
+                     <form action="../contrat/voircontrat.php" method="post">
+                         <input type="hidden" name="montant" value="<?= htmlspecialchars($accep['prix']); ?>">
+                        <input type="hidden" name="id_maison" value="<?= htmlspecialchars($accep['id_maison']); ?>">
+                         <input type="hidden" name="id_utilisateur" value="<?= htmlspecialchars($_SESSION['user_id']); ?>">
+                        
+                    <button type="submit" class="btn btn-outline-primary btn-sm">voir contrat</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    <?php else : ?>
+        <tr>
+            <td colspan="5">
+                <div class="alert alert-info text-center m-0">Aucune annonce trouvée.</div>
+            </td>
+        </tr>
+    <?php endif; ?>
+
                     </tbody>
                 </table>
             </div>
