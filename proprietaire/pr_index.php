@@ -3,6 +3,8 @@ session_start();
 require_once(__DIR__."/../classe/utilisateurs.php");
 require_once(__DIR__ . "/../classe/maison.php");
 require_once(__DIR__ . '/../classe/demande_location.php');
+require_once(__DIR__ . '/../classe/paiement.php');
+require_once(__DIR__ . '/../classe/contrat.php');
 
 
 // Vérifier si l'utilisateur est connecté
@@ -94,6 +96,8 @@ if (isset($_POST['publier'])) {
   
 
     // Exemple d'utilisation pour afficher le nombre total de demandes dans une variable
+    $paiement = new Paiement();
+    $nombrePaiements = $paiement->getPaiementsParProprietaire($id_user);
    
 }
 ?>
@@ -280,6 +284,8 @@ if (isset($_POST['publier'])) {
                 <!-- Tableau des paiements (exemple statique) -->
                 <table class="table table-striped">
                     <thead>
+                        <?php if (!empty($nombrePaiements)) : ?>
+                        <?php foreach ($nombrePaiements as $paie) : ?>
                         <tr>
                             <th>Locataire</th>
                             <th>Montant</th>
@@ -289,17 +295,17 @@ if (isset($_POST['publier'])) {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Jean Dupont</td>
-                            <td>500 €</td>
-                            <td>2024-06-01</td>
-                            <td><span class="badge bg-success">Payé</span></td>
+                            <td><?php echo htmlspecialchars($paie["nom_locataire"] ?? 'Locataire inconnu'); ?></td>
+                            <td><?php echo htmlspecialchars($paie["montant"] ?? 'Locataire inconnu'); ?></td>
+                            <td><?php echo htmlspecialchars($paie["date"] ?? 'Locataire inconnu'); ?></td>
+                            <td><span class="badge bg-success"><?php echo htmlspecialchars($paie["statut"] ?? 'Locataire inconnu'); ?></span></td>
                         </tr>
+                        <?php endforeach; ?>
+                        <?php else : ?>
                         <tr>
-                            <td>Marie Martin</td>
-                            <td>700 €</td>
-                            <td>2024-06-05</td>
-                            <td><span class="badge bg-warning text-dark">En attente</span></td>
+                            <td colspan="4" class="text-center">Aucun paiement enregistré.</td> 
                         </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>

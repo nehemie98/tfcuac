@@ -21,8 +21,8 @@
   <header>
     <div class="navbar">
       <div class="logo">
-        <img src="https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=60&q=80" alt="Logo Location Maisons" style="height:40px;vertical-align:middle;margin-right:8px;border-radius:8px;">
-        Location Maisons
+        <img src="../images/logo/logos.avif" alt="Logo Location Maisons" style="height:40px;vertical-align:middle;margin-right:8px;border-radius:8px;">
+        ACCIAC Butembo
       </div>
       <button class="menu-toggle" aria-label="Menu"><i class="fas fa-bars"></i></button>
       <nav>
